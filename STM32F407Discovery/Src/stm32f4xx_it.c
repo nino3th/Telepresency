@@ -83,19 +83,21 @@ void EXTI9_5_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI9_5_IRQn 0 */
    
-  /* USER CODE END EXTI9_5_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_7);
-  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_8);
+  /* USER CODE END EXTI9_5_IRQn 0 */  
+  
   /* USER CODE BEGIN EXTI9_5_IRQn 1 */
-
-  if ( ((   GPIOE->IDR & abd_ePinL_A_Pin)  && (!(GPIOE->IDR & abd_ePinL_B_Pin))) ||
-       ( (!(GPIOE->IDR & abd_ePinL_A_Pin)) &&   (GPIOE->IDR & abd_ePinL_B_Pin) )    )
+  if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_8) != RESET)
   {
-    abd_ticksL++;      
-  }else
-  {
-    abd_ticksL--;       
-  } 
+    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_8);
+    if ( ((   GPIOE->IDR & abd_ePinL_A_Pin)  && (!(GPIOE->IDR & abd_ePinL_B_Pin))) ||
+         ( (!(GPIOE->IDR & abd_ePinL_A_Pin)) &&   (GPIOE->IDR & abd_ePinL_B_Pin) )    )
+    {
+      abd_ticksL++;      
+    }else
+    {
+      abd_ticksL--;       
+    }
+  }
   
   if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_7) != RESET)
   {
@@ -137,19 +139,20 @@ void EXTI15_10_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI15_10_IRQn 0 */
 
-  /* USER CODE END EXTI15_10_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_12);
+  /* USER CODE END EXTI15_10_IRQn 0 */  
   /* USER CODE BEGIN EXTI15_10_IRQn 1 */
- if ( ((   GPIOE->IDR & abd_ePinR_A_Pin)  && (!(GPIOE->IDR & abd_ePinR_B_Pin))) ||
-       ( (!(GPIOE->IDR & abd_ePinR_A_Pin)) &&   (GPIOE->IDR & abd_ePinR_B_Pin) )    )
+   if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_12) != RESET)
   {
-    abd_ticksR++;      
-  }else
-  {
-    abd_ticksR--;  
-    //abd_speedRCalc = - abd_speedRCalc;
-    
-  } 
+    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_12);
+    if ( ((   GPIOE->IDR & abd_ePinR_A_Pin)  && (!(GPIOE->IDR & abd_ePinR_B_Pin))) ||
+         ( (!(GPIOE->IDR & abd_ePinR_A_Pin)) &&   (GPIOE->IDR & abd_ePinR_B_Pin) )    )
+    {
+      abd_ticksR++;      
+    }else
+    {
+      abd_ticksR--;       
+    } 
+  }
   /* USER CODE END EXTI15_10_IRQn 1 */
 }
 

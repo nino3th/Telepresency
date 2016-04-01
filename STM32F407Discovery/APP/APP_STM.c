@@ -2,7 +2,8 @@
 #include "APP_STM.h"
 //#include "mavlink/Arlobot/mavlink.h"
 
-static void broadcastEncoder();
+void broadcastEncoder();
+
 uint16_t UltraSoundTrig(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin);
 
 uint16_t d =0;
@@ -77,7 +78,7 @@ uint16_t UltraSoundTrig(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)
 
 
 
-static void broadcastEncoder()
+void broadcastEncoder()
 {
     
     static int t = 0;

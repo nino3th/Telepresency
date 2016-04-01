@@ -3,6 +3,12 @@
 #include "APP_MotorDriver.h"
 
 
+
+void drive_ticks(int left, int right, int speed);
+void drive_position_control(void);
+void set_drive_speed(int left, int right);
+
+
 TIM_HandleTypeDef htim1;
 TIM_OC_InitTypeDef octim1;
 
@@ -11,6 +17,8 @@ static uint8_t drive_state = SPEED;
 
 extern int abd_ticksL;
 extern int abd_ticksR;
+
+pos_ctrl_t pos_ctrl = {0};
 
 static int abd_speedLCalc = 0;  // Calcuted servo speed left
 static int abd_speedRCalc = 0;  // Calcuted servo speed Right
@@ -98,8 +106,8 @@ void motor_drive_loop(void const * argument)
 
 
     while (1) {
-   //   if (drive_state == POSITION_INIT || drive_state == POSITION_RUN)
-        //position_control();
+      if (drive_state == POSITION_INIT || drive_state == POSITION_RUN)
+        drive_position_control();
         // PID Speed Control
       if ((CNT - t) >= t_loop) {
         t = CNT;
@@ -153,12 +161,12 @@ void motor_drive_loop(void const * argument)
           if (fabs(driveR) >= 100)
             driveR = (driveR > 0) ? 100 : -100;
         }
-    /*
+#if 0
         printf("driveL = %d\t",driveL);
         printf("spL = %d\t",spL);
         printf("driveR = %d\t",driveR);
         printf("spR = %d\t\r\n",spR);
-        */
+#endif    
         cdl_PWM_Level(&htim1,&octim1,1500+driveL,TIM_CHANNEL_1);
         cdl_PWM_Level(&htim1,&octim1,1500+driveR,TIM_CHANNEL_2);
         cdl_PWM_Switch(&htim1,&octim1,ON,TIM_CHANNEL_1);
@@ -230,12 +238,84 @@ void EncoderCallback(void const * argument)
              ckeck_pwr = ON;
     }
   
-  taskEXIT_CRITICAL();
-  
-    
+  taskEXIT_CRITICAL();     
    
 }
 
+void drive_position_control()
+{
+	static uint32_t t = 0;
+	const uint32_t dt = CLKFREQ / 50;
+
+	if (CNT - t < dt)
+		return;
+
+	//LOCK_BEGIN(pos_ctrl.semaphore);
+        osSemaphoreWait(ID_SEM_POS_CTRL,0);
+	if (drive_state == POSITION_INIT)
+		drive_state = POSITION_RUN;
+	t = CNT;
+	// Gp = 0.5f; Gi = 0.05f; Gd = 0.075f; // PID paramaters for arlobot
+	int ticksL, ticksR;
+	drive_getTicks(&ticksL, &ticksR);
+
+
+	int chkDriveL = (pos_ctrl.dirL > 0) ? (pos_ctrl.ticksLtarget > ticksL) : (pos_ctrl.ticksLtarget < ticksL);
+	int chkDriveR = (pos_ctrl.dirR > 0) ? (pos_ctrl.ticksRtarget > ticksR) : (pos_ctrl.ticksRtarget < ticksR);
+	int thL = pos_ctrl.dsrSpL, thR = pos_ctrl.dsrSpR;
+	float spL = 0,  spR = 0;
+	pos_ctrl.errL = pos_ctrl.ticksLtarget - ticksL;
+	pos_ctrl.errR = pos_ctrl.ticksRtarget - ticksR;
+	if (chkDriveL) {
+		if (fabs(pos_ctrl.ticksLtarget - ticksL) > thL) {
+			spL = pos_ctrl.dirL * pos_ctrl.dsrSpL;
+		}
+		else {
+			// PID control
+			pos_ctrl.integralL += pos_ctrl.Gi * pos_ctrl.errL;
+			pos_ctrl.derivativeL = -pos_ctrl.Gd * (float)(ticksL - pos_ctrl.lastTicksL);  // delta(error)/dt = -delta(ticks)/dt
+
+			spL = (pos_ctrl.Gp * pos_ctrl.errL) + pos_ctrl.integralL +  pos_ctrl.derivativeL;
+			if (fabs(spL) > pos_ctrl.dsrSpL) {
+				spL = pos_ctrl.dirL * pos_ctrl.dsrSpL;
+				if (pos_ctrl.Gi > 1e-6)
+					pos_ctrl.integralL -= pos_ctrl.Gi * pos_ctrl.errL;/*(spL - Gp * errL -  derivativeL);*/ // windup integral comm_host
+			}
+		}
+	}
+	else {
+		spL = 0;
+	}
+
+	if (chkDriveR) {
+		if (fabs(pos_ctrl.ticksRtarget - ticksR) > thR) {
+			spR = pos_ctrl.dirR * pos_ctrl.dsrSpR;
+		}
+		else {
+			// PID control
+			pos_ctrl.integralR += pos_ctrl.Gi * pos_ctrl.errR ;
+			pos_ctrl.derivativeR = -pos_ctrl.Gd * (float)(ticksR - pos_ctrl.lastTicksR);
+
+			spR = (pos_ctrl.Gp * pos_ctrl.errR) + pos_ctrl.integralR + pos_ctrl.derivativeR;
+			if (fabs(spR) > pos_ctrl.dsrSpR) {
+				spR = pos_ctrl.dirR * pos_ctrl.dsrSpR;
+				if (pos_ctrl.Gi > 1e-6)
+					pos_ctrl.integralR -= pos_ctrl.Gi * pos_ctrl.errR; /*(spR - Gp * errR - derivativeR);*/ // windup integral term
+			}
+		}
+	}
+	else {
+		spR = 0;
+	}
+	pos_ctrl.lastTicksL = ticksL;
+	pos_ctrl.lastTicksR = ticksR;
+	if (drive_state == POSITION_RUN)
+		set_drive_speed((int)spL, (int)spR);
+	if (!chkDriveL && !chkDriveR && drive_state == POSITION_RUN)
+		drive_state = IDLE;
+	//LOCK_END(pos_ctrl.semaphore);
+        osSemaphoreRelease(ID_SEM_POS_CTRL);
+}
 
 void drive_setSpeedPID(int wheel_idx, float P, float I, float D)
 {
@@ -254,8 +334,19 @@ void drive_setSpeedPID(int wheel_idx, float P, float I, float D)
 	}
 }
 
+void drive_setPosPID(float P, float I, float D)
+{
+	const float pos_sample_t = 1.f / 50;
+	//LOCK_BEGIN(pos_ctrl.semaphore);
+        osSemaphoreWait(ID_SEM_POS_CTRL,0);
+	pos_ctrl.Gp = P; pos_ctrl.Gi = I; pos_ctrl.Gd = D;
+	pos_ctrl.Gi *= pos_sample_t;
+	pos_ctrl.Gd /= pos_sample_t;
+	//LOCK_END(pos_ctrl.semaphore);
+        osSemaphoreRelease(ID_SEM_POS_CTRL);
+}
 
-void drive_Speed(int left, int right)       
+void drive_speed(int left, int right)       
 {
 	
     drive_state = SPEED;
@@ -268,6 +359,67 @@ void drive_Speed(int left, int right)
     abd_speedR = right;
 
 }
+
+void set_drive_speed(int left, int right)
+{
+   
+    //set_drive_speed(left, right);
+    if (left > abd_speed_limit) left = abd_speed_limit;
+    if (left < -abd_speed_limit) left = -abd_speed_limit;
+    if (right > abd_speed_limit) right = abd_speed_limit;
+    if (right < -abd_speed_limit) right = -abd_speed_limit;
+    abd_speedL = left;
+    abd_speedR = right;
+
+}
+
+void drive_angle(float degrees, float angular_vel)
+{
+	volatile float rad = degrees * 3.1415926f / 180.f;
+	volatile int gotoTickL = (int)(-0.5 * rad * g_trackWidth / g_distancePerCount);
+	volatile int gotoTickR =  (int)(0.5 * rad * g_trackWidth / g_distancePerCount);
+	volatile int speed = (int)(angular_vel * 3.1415926f / 180.f * (g_trackWidth * 0.5) / g_distancePerCount);
+	drive_ticks(gotoTickL, gotoTickR, speed);
+}
+
+void drive_distance(float dist_left, float dist_right, float vel)
+{
+	volatile int gotoTickL = (int)(dist_left / g_distancePerCount);
+	volatile int gotoTickR = (int)(dist_right / g_distancePerCount);
+	//volatile int speed = (int)(vel / g_distancePerCount);
+	drive_ticks(gotoTickL, gotoTickR, vel);
+
+}
+
+void drive_ticks(int left, int right, int speed)
+{
+//  LOCK_BEGIN(pos_ctrl.semaphore);
+    osSemaphoreWait(ID_SEM_POS_CTRL,0);
+    if (fabs(speed) > abd_speed_limit) speed = abd_speed_limit;
+    int ticksL, ticksR;
+    drive_getTicks(&ticksL, &ticksR);
+    pos_ctrl.ticksLtarget = ticksL + left;
+    pos_ctrl.ticksRtarget = ticksR + right;
+    pos_ctrl.lastTicksL = ticksL;
+    pos_ctrl.lastTicksR = ticksR;
+    
+    pos_ctrl.dirL = (left > 0 ) ? 1 : -1;
+    pos_ctrl.dirR = (right > 0 ) ? 1 : -1;
+    int distL = (int)fabs(left);
+    int distR = (int)fabs(right);
+    float spRatioL = distL > distR ? 1.f : (float)distL / distR;
+    float spRatioR = distL > distR ? (float)distR / distL : 1.f;
+    pos_ctrl.dsrSpL = (int)(spRatioL * fabs(speed));
+    pos_ctrl.dsrSpR = (int)(spRatioR * fabs(speed));
+    
+    pos_ctrl.errL = pos_ctrl.errR = pos_ctrl.integralL = pos_ctrl.integralR = pos_ctrl.derivativeL = pos_ctrl.derivativeR = 0;
+    
+    drive_state = POSITION_INIT;
+    //LOCK_END(pos_ctrl.semaphore);
+    osSemaphoreRelease(ID_SEM_POS_CTRL);
+}
+
+
 
 void drive_update_odom()
 {
@@ -304,12 +456,12 @@ void drive_update_odom()
     V = ((speedRight * g_distancePerCount) + (speedLeft * g_distancePerCount)) / 2;
     Omega = ((speedRight * g_distancePerCount) - (speedLeft * g_distancePerCount)) / g_trackWidth;
     
-#ifdef DebugMsg
+#if 1
     printf("X : %f\t",X);
     printf("Y : %f\t",Y);
     printf("Heading : %f\t",Heading);
-    printf("Omega : %f\t",Omega);
-    printf("V : %f\r\n",V);
+    printf("omega : %f\t",Omega);
+    printf("v : %f\r\n",V);
 #endif
   
 }
@@ -348,3 +500,11 @@ int drive_getCHKPWR()
     return ckeck_pwr;
 }
 
+void drive_get_odom_info(double * x, double * y, double * heading, double * omega, double * v)
+{
+    *x = X;
+    *y = Y;
+    *heading = Heading;
+    *omega = Omega;
+    *v = V;
+}

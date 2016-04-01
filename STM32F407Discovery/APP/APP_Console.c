@@ -14,11 +14,11 @@ void app_CMDShell_Task(void const * argument)
   
   while(TRUE)
   {
-    if ((xTaskGetTickCount() - con_t) > 1000) 
+    if ((xTaskGetTickCount() - con_t) > 100) 
     {
       con_t = xTaskGetTickCount();
-      //app_Console_HDLR();     
-      app_Console_Mobile();      
+      app_Console_HDLR();     
+      //app_Console_Mobile();      
     
     }
   
@@ -35,29 +35,29 @@ void app_Console_Mobile(void)
         case '1':       //forward
           tempL +=50;
           tempR +=50;
-          drive_Speed(tempL,tempR);
+          drive_speed(tempL,tempR);
           break;
         case '2':       //backward
           tempL -=50;
           tempR -=50;
-          drive_Speed(tempL,tempR);
+          drive_speed(tempL,tempR);
           break; 
         case '3':       //left
           tempL =-100;
           tempR =100;
-          drive_Speed(tempL,tempR);
+          drive_speed(tempL,tempR);
           tempL = tempR =0;
           break; 
         case '4':       //right
           tempL =100;
           tempR =-100;
-          drive_Speed(tempL,tempR);
+          drive_speed(tempL,tempR);
           tempL = tempR =0;
           break; 
         case '5':
           tempL =0;
           tempR =0;
-          drive_Speed(tempL,tempR);
+          drive_speed(tempL,tempR);
           break; 
         case '8':
           taskFlag = 1;

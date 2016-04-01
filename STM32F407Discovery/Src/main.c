@@ -61,6 +61,7 @@ osThreadId LeftEncoderTaskHandle;
 osThreadId RightEncoderTaskHandle;
 osThreadId ConsoleTaskHandle;
 osSemaphoreId ID_SEM_PRINTF;
+osSemaphoreId ID_SEM_POS_CTRL;
 uint8_t taskFlag=0;
 /* USER CODE END PV */
 
@@ -120,6 +121,8 @@ int main(void)
   /* add semaphores, ... */
   osSemaphoreDef(SEM_Printf);
   ID_SEM_PRINTF = osSemaphoreCreate(osSemaphore(SEM_Printf),1);
+  osSemaphoreDef(SEM_Pos_Ctrl);
+  ID_SEM_POS_CTRL = osSemaphoreCreate(osSemaphore(SEM_Pos_Ctrl),1);
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* USER CODE BEGIN RTOS_TIMERS */
@@ -419,12 +422,11 @@ void StartDefaultTask(void const * argument)
     {
         taskFlag =0;
           
-        drive_setSpeedPID(WHEEL_BOTH, 4, 0.02, 0.0002);  // PID speed control parameters for NIBot
-        
-      //  drive_setPosPID(1, 0, 0.075);
+        drive_setSpeedPID(WHEEL_BOTH, 4, 0.02, 0.0002);  // PID speed control parameters for NIBot       
+        drive_setPosPID(0.5, 0.05, 0.075);
     
-       // osThreadDef(SystemTask, stm_loop, osPriorityNormal, 0, 128);
-       // STMTaskHandle = osThreadCreate(osThread(SystemTask), NULL);
+        osThreadDef(SystemTask, stm_loop, osPriorityNormal, 0, 128);
+        STMTaskHandle = osThreadCreate(osThread(SystemTask), NULL);
                       
         osThreadDef(motorTask, motor_drive_loop, osPriorityNormal, 0, 128);
         MotorDriveTaskHandle = osThreadCreate(osThread(motorTask), NULL);

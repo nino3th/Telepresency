@@ -11,9 +11,9 @@ void cmd_ckeck_pwr(void)
     printf("CHKPWR = OFF\r\n");
 }
 
-void cmd_speed(uint16_t leftSpeed, uint16_t rightSpeed )
+void cmd_speed(uint16_t leftSpeed, uint16_t rightSpeed)
 {
-  drive_Speed(leftSpeed,rightSpeed);       
+  drive_speed(leftSpeed,rightSpeed);       
 }
 
 void cmd_start(void)
@@ -30,6 +30,27 @@ void cmd_getspeed(void)
   printf("driveL = %d\r\n",s_l);
         
 }
+
+void cmd_distance(int dis,int vel)
+{  
+    drive_distance((float)dis, (float)dis, (float)vel);
+}
+
+void cmd_angle(int deg,int vel)
+{
+    drive_angle((float)deg, (float)vel);
+}
+
+void cmd_getodom(void)
+{
+  double x,y,heading,omega,v;
+  drive_get_odom_info(&x,&y,&heading,&omega,&v);
+  printf("x : %f\t",x);
+  printf("y : %f\t",y);
+  printf("heading : %f\t",heading);
+  printf("omega : %f\t",omega);
+  printf("v : %f\r\n",v);
+}       
 
 CONS_CMD_DEF(pwr)
 {
@@ -67,13 +88,45 @@ CONS_CMD_DEF(getspeed)
 	}
 };
 
+CONS_CMD_DEF(dis)
+{
+        "dis",
+	(MyFunc)cmd_distance,
+	{    
+          (DEC_ARG | REQUIRED_ARG),         
+          (DEC_ARG | REQUIRED_ARG)           
+	}
+};
+
+CONS_CMD_DEF(ang)
+{
+        "ang",
+	(MyFunc)cmd_angle,
+	{    
+          (DEC_ARG | REQUIRED_ARG),
+          (DEC_ARG | REQUIRED_ARG)        
+	}
+};
+
+CONS_CMD_DEF(getodom)
+{
+        "getodom",
+	(MyFunc)cmd_getodom,
+	{    
+          (0)  
+	}
+};
+
 
 const tCOMMAND * aCmdTbl[] =
 {
 	CONS_CMD(speed),
         CONS_CMD(start),
         CONS_CMD(getspeed),
+        CONS_CMD(getodom),
         CONS_CMD(pwr),
+        CONS_CMD(dis),  
+        CONS_CMD(ang),  
 	// end with NULL, never remove this
 	NULL,
 };
