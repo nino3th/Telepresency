@@ -18,7 +18,7 @@ void app_CMDShell_Task(void const * argument)
     {
       con_t = xTaskGetTickCount();
       app_Console_HDLR();     
-      //app_Console_Mobile();      
+     // app_Console_Mobile();      
     
     }
   
@@ -174,22 +174,36 @@ int atohi(char * s, unsigned int * n)
   return TRUE;
 }
 
-int atod(char * s, unsigned int * n)
+int atod(char * s, float * n)
 {
-  unsigned int num;
+  volatile float num,d=1;
+  char sign=0;
+  volatile int i=0,len=0,point=0;
  
+  len = strlen(s);
   if ( s == NULL )
   {
     return FALSE;
   }
  
-  for ( num=0; *s; s++ ){
-    if ( !strchr("0123456789",*s) ){
+  for ( num=0; *s; s++ ,i++){
+    if ( !strchr("0123456789-.",*s) ){
       return FALSE;
-    }
- 
-	num = (num * 10) + (*s-'0');
+    } 
+        if ( strchr("-",*s) ){
+          sign = 1;
+        }           
+        else if ( strchr(".",*s) ){
+          point = i;
+        }
+        else  
+          num = (num * 10) + (*s-'0');
   }
+  if(sign)
+    num = -num;
+  if(point)
+    num = num / pow(10,(len-point-1));    
+  
   *n = num;
  
   return TRUE;
@@ -250,7 +264,7 @@ void app_Console_Execute(char *aString)
     unsigned int iArgType;
     unsigned int iUserArgs;
     unsigned int iMaxArgs;
-    unsigned int aArgs[MAXARGS];
+    float aArgs[MAXARGS];
     unsigned int iArg;
     unsigned char bError;
     //uint8_t uiStr[20];
@@ -295,10 +309,10 @@ void app_Console_Execute(char *aString)
                 switch (iArgType)
                 {
                 case HEX_ARG:
-                    if (!atohi(pArgs[iArg], &aArgs[iArg]))
+               /*     if (!atohi(pArgs[iArg], &aArgs[iArg]))
                     {
                         bError = TRUE;
-                    }
+                    }*/
                     break;
  
                 case DEC_ARG:

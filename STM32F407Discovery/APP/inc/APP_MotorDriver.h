@@ -14,14 +14,21 @@
 // ROBOT type
 // #define ROBOT_KAOHSIUNG     1
 // #define ROBOT_TAIPEI        1
-#define ROBOT_KAOHSIUNG        1
+//#define ROBOT_KAOHSIUNG        1
+#define ERBG   1
 
 #define MOTOR_ENOCDER_ENABLE
 
 #define CLKFREQ                      1000
 #define CTRL_FREQ_SPEED              40
-
-#if defined(ROBOT_TAIPEI)
+#if defined(ERBG)
+    #define SPEED_LIMIT_DEFAULT         480
+    #define ABD_SPEED_LIMIT_DEFAULT     480
+    #define ABDR_SPEED_LIMIT_DEFAULT    480
+    #define TRACK_WIDTH_DEFAULT         0.465
+    //#define DISTANCE_PER_COUNT_DEFAULT  0.0000323f
+#define DISTANCE_PER_COUNT_DEFAULT  0.00010134f
+#elif defined(ROBOT_TAIPEI)
     #define SPEED_LIMIT_DEFAULT         7500
     #define ABD_SPEED_LIMIT_DEFAULT     7500
     #define ABDR_SPEED_LIMIT_DEFAULT    7500
@@ -96,5 +103,6 @@ void drive_getTargetTicks(int* tarL, int* tarR);
 int drive_getCHKPWR();
 void drive_get_odom_info(double * x, double * y, double * heading, double * omega, double * v);
 void EncoderCallback(void const * argument);
+void drive_init_position(double x, double y, double heading);
 
 #endif /* __APP_DRIVER_MANAGER_H */

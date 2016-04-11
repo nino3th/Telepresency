@@ -6,7 +6,7 @@
 
 void drive_ticks(int left, int right, int speed);
 void drive_position_control(void);
-void set_drive_speed(int left, int right);
+void drive_setPosSpeed(int left, int right);
 
 
 TIM_HandleTypeDef htim1;
@@ -310,7 +310,7 @@ void drive_position_control()
 	pos_ctrl.lastTicksL = ticksL;
 	pos_ctrl.lastTicksR = ticksR;
 	if (drive_state == POSITION_RUN)
-		set_drive_speed((int)spL, (int)spR);
+		drive_setPosSpeed((int)spL, (int)spR);
 	if (!chkDriveL && !chkDriveR && drive_state == POSITION_RUN)
 		drive_state = IDLE;
 	//LOCK_END(pos_ctrl.semaphore);
@@ -349,8 +349,7 @@ void drive_setPosPID(float P, float I, float D)
 void drive_speed(int left, int right)       
 {
 	
-    drive_state = SPEED;
-    //set_drive_speed(left, right);
+    drive_state = SPEED;    
     if (left > abd_speed_limit) left = abd_speed_limit;
     if (left < -abd_speed_limit) left = -abd_speed_limit;
     if (right > abd_speed_limit) right = abd_speed_limit;
@@ -360,10 +359,10 @@ void drive_speed(int left, int right)
 
 }
 
-void set_drive_speed(int left, int right)
+void drive_setPosSpeed(int left, int right)
 {
    
-    //set_drive_speed(left, right);
+    
     if (left > abd_speed_limit) left = abd_speed_limit;
     if (left < -abd_speed_limit) left = -abd_speed_limit;
     if (right > abd_speed_limit) right = abd_speed_limit;
@@ -387,7 +386,7 @@ void drive_distance(float dist_left, float dist_right, float vel)
 	volatile int gotoTickL = (int)(dist_left / g_distancePerCount);
 	volatile int gotoTickR = (int)(dist_right / g_distancePerCount);
 	//volatile int speed = (int)(vel / g_distancePerCount);
-	drive_ticks(gotoTickL, gotoTickR, vel);
+	drive_ticks(gotoTickL, gotoTickR, (int)vel);
 
 }
 
@@ -419,7 +418,12 @@ void drive_ticks(int left, int right, int speed)
     osSemaphoreRelease(ID_SEM_POS_CTRL);
 }
 
-
+void drive_init_position(double x, double y, double heading)
+{
+	X = x;
+	Y = y,
+	Heading = heading;
+}
 
 void drive_update_odom()
 {
@@ -457,11 +461,11 @@ void drive_update_odom()
     Omega = ((speedRight * g_distancePerCount) - (speedLeft * g_distancePerCount)) / g_trackWidth;
     
 #if 1
-    printf("X : %f\t",X);
-    printf("Y : %f\t",Y);
-    printf("Heading : %f\t",Heading);
-    printf("omega : %f\t",Omega);
-    printf("v : %f\r\n",V);
+    printf("X:%f,",X);
+    printf("Y:%f",Y);
+    printf("Heading:%f\r\n",Heading);
+    //printf("omega:%f\t",Omega);
+    //printf("v : %f\r\n",V);
 #endif
   
 }
@@ -507,4 +511,6 @@ void drive_get_odom_info(double * x, double * y, double * heading, double * omeg
     *heading = Heading;
     *omega = Omega;
     *v = V;
+    
+    
 }

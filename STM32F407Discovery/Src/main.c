@@ -32,7 +32,7 @@
   */
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
-#include "cmsis_os.h"
+
 
 /* USER CODE BEGIN Includes */
 #include "main.h"
@@ -57,11 +57,10 @@ osThreadId defaultTaskHandle;
 /* Private variables ---------------------------------------------------------*/
 osThreadId STMTaskHandle;
 osThreadId MotorDriveTaskHandle;
-osThreadId LeftEncoderTaskHandle;
-osThreadId RightEncoderTaskHandle;
 osThreadId ConsoleTaskHandle;
 osSemaphoreId ID_SEM_PRINTF;
 osSemaphoreId ID_SEM_POS_CTRL;
+osTimerId EncoderTimerID;
 uint8_t taskFlag=0;
 /* USER CODE END PV */
 
@@ -140,6 +139,8 @@ int main(void)
     osThreadDef(consoleTask, app_CMDShell_Task, osPriorityNormal, 0, 128);
   ConsoleTaskHandle = osThreadCreate(osThread(consoleTask), NULL);
   
+  
+  //taskFlag =1;  
 
   /* USER CODE END RTOS_THREADS */
 
@@ -424,22 +425,23 @@ void StartDefaultTask(void const * argument)
           
         drive_setSpeedPID(WHEEL_BOTH, 4, 0.02, 0.0002);  // PID speed control parameters for NIBot       
         drive_setPosPID(0.5, 0.05, 0.075);
+        drive_init_position(0,0,0);
     
         osThreadDef(SystemTask, stm_loop, osPriorityNormal, 0, 128);
         STMTaskHandle = osThreadCreate(osThread(SystemTask), NULL);
                       
         osThreadDef(motorTask, motor_drive_loop, osPriorityNormal, 0, 128);
-        MotorDriveTaskHandle = osThreadCreate(osThread(motorTask), NULL);
+        MotorDriveTaskHandle = osThreadCreate(osThread(motorTask), NULL);        
 #ifdef MOTOR_ENOCDER_ENABLE
         HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
         HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
-        HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
+        HAL_NVIC_SetPriority(EXTI15_10_IRQn, 4, 0);
         HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
         osTimerDef(EncoderTimer, EncoderCallback);
-        osTimerId EncoderTimerID = osTimerCreate (osTimer(EncoderTimer), osTimerPeriodic, NULL);
+        EncoderTimerID = osTimerCreate (osTimer(EncoderTimer), osTimerPeriodic, NULL);
         osTimerStart(EncoderTimerID,10);//10ms
 #endif
-        osThreadTerminate(defaultTaskHandle);
+       // osThreadTerminate(defaultTaskHandle);
     }
   }
   /* USER CODE END 5 */ 

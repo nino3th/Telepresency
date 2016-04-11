@@ -158,5 +158,14 @@ void EXTI15_10_IRQHandler(void)
 
 /* USER CODE BEGIN 1 */
 
+
+void HardFault_Handler(void)
+{
+  int il;
+   while(1)
+   {
+     il=1;
+   }
+}
 /* USER CODE END 1 */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

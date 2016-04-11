@@ -3,9 +3,11 @@
 
 
 #include "string.h"
+#include "stdlib.h"
 #include "cmsis_os.h"
 #include "CDL_Printf.h"
 #include "APP_MotorDriver.h"
+#include "main.h"
 
 
 #define MAXARGS     	4
@@ -33,7 +35,7 @@
 
 #define CONS_CMD(name) (const tCOMMAND *) &aCmd_##name
 
-typedef void    (*MyFunc)(int p1,int p2,int p3);
+typedef void    (*MyFunc)(float p1,float p2,float p3);
 
 typedef struct
 {

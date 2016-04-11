@@ -11,14 +11,24 @@ void cmd_ckeck_pwr(void)
     printf("CHKPWR = OFF\r\n");
 }
 
-void cmd_speed(uint16_t leftSpeed, uint16_t rightSpeed)
+void cmd_speed(float leftSpeed, float rightSpeed)
 {
-  drive_speed(leftSpeed,rightSpeed);       
+  drive_speed((int)leftSpeed,(int)rightSpeed);       
 }
 
 void cmd_start(void)
 {
    taskFlag = 1;
+}
+
+void cmd_stop(void)
+{
+  osThreadTerminate(STMTaskHandle);
+  osThreadTerminate(MotorDriveTaskHandle);
+  HAL_NVIC_DisableIRQ(EXTI9_5_IRQn);        
+  HAL_NVIC_DisableIRQ(EXTI15_10_IRQn);
+  osTimerStop(EncoderTimerID);
+  
 }
 
 void cmd_getspeed(void)
@@ -31,14 +41,14 @@ void cmd_getspeed(void)
         
 }
 
-void cmd_distance(int dis,int vel)
+void cmd_distance(float dis,float vel)
 {  
-    drive_distance((float)dis, (float)dis, (float)vel);
+    drive_distance(dis, dis, vel);
 }
 
-void cmd_angle(int deg,int vel)
+void cmd_angle(float deg,float vel)
 {
-    drive_angle((float)deg, (float)vel);
+    drive_angle(deg, vel);
 }
 
 void cmd_getodom(void)
@@ -50,6 +60,8 @@ void cmd_getodom(void)
   printf("heading : %f\t",heading);
   printf("omega : %f\t",omega);
   printf("v : %f\r\n",v);
+  
+  
 }       
 
 CONS_CMD_DEF(pwr)
@@ -60,9 +72,9 @@ CONS_CMD_DEF(pwr)
           (0)          
 	}
 };
-CONS_CMD_DEF(speed)
+CONS_CMD_DEF(spd)
 {
-	"speed",
+	"spd",
 	(MyFunc)cmd_speed,
 	{    
           (DEC_ARG | REQUIRED_ARG),
@@ -79,9 +91,9 @@ CONS_CMD_DEF(start)
 	}
 };
 
-CONS_CMD_DEF(getspeed)
+CONS_CMD_DEF(getspd)
 {
-        "getspeed",
+        "getspd",
 	(MyFunc)cmd_getspeed,
 	{    
           (0)          
@@ -117,16 +129,27 @@ CONS_CMD_DEF(getodom)
 	}
 };
 
+CONS_CMD_DEF(stop)
+{
+        "stop",
+	(MyFunc)cmd_stop,
+	{    
+          (0)  
+	}
+};
+
 
 const tCOMMAND * aCmdTbl[] =
-{
-	CONS_CMD(speed),
+{	
         CONS_CMD(start),
-        CONS_CMD(getspeed),
+        CONS_CMD(stop),
+        CONS_CMD(getspd),
         CONS_CMD(getodom),
         CONS_CMD(pwr),
+        CONS_CMD(spd),
         CONS_CMD(dis),  
         CONS_CMD(ang),  
+        
 	// end with NULL, never remove this
 	NULL,
 };
